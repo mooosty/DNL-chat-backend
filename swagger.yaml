@@ -224,7 +224,7 @@ paths:
           description: Not Found - Group or user not found
   /chat/group/fetch:
     get:
-      summary: Fetch group chats
+      summary: Fetch all the groups user has joined.
       security:
         - bearerAuth: []
       responses:
@@ -251,7 +251,7 @@ paths:
         - name: chatId
           in: path
           required: true
-          description: ID of the chat to fetch messages for
+          description: ID of the chat to fetch messages for. ChatID is the group ID user is joined with
           schema:
             type: string
       responses:

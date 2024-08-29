@@ -35,8 +35,9 @@ const sendMessage = async (req, res) => {
   
       res.json(message);
     } catch (error) {
-      res.status(400);
-      throw new Error(error.message);
+      res.status(400).send({status:false ,error:error});
+      // res.status(400);
+      // throw new Error(error.message);
     }
   };
 
@@ -45,14 +46,17 @@ const sendMessage = async (req, res) => {
   const allMessages = async (req, res) => {
     try {
       console.log(req.params.chatId)
+      const findChat = await Chat.findById(req.params.chatId)
+      if(findChat.users.filter(f=>f._id.toString() == req.user_id.toString()).length == 0) return res.status(400).send({status:false,error:"User not the part of this group."}) 
       const messages = await Message.find({ chat: req.params.chatId })
         .populate("sender")
         .populate("chat");
         console.log(req.params.chatId)
+        
       res.json(messages);
     } catch (error) {
       res.status(400).send({status:false ,error:error});
-      throw new Error(error.message);
+      // throw new Error(error.message);
     }
   };
 
