@@ -5,6 +5,10 @@ const cors = require("cors")
 const { dbConnection } = require("./db")
 const app = express()
 const server = http.createServer(app);
+const swaggerUI = require("swagger-ui-express")
+const swaggerDoc = require("swagger-jsdoc")
+const YAML = require('yamljs');
+const path = require("path")
 
 dotenv.config()
 app.use(cors())
@@ -43,9 +47,9 @@ const io = require("socket.io")(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("Connected to socket.io");
   socket.on("setup", (userData) => {
-    socket.join(userData._id);
+    console.log(`${userData.data._id} Connected to socket.io`);
+    socket.join(userData.data._id);
     socket.emit("connected");
   });
 
@@ -73,7 +77,7 @@ io.on("connection", (socket) => {
       if (user._id == newMessageRecieved.sender._id) return;
 
       socket.in(user._id).emit("message recieved", newMessageRecieved);
-      console.log("new message received", newMessageRecieved.content)
+      console.log("new message received", newMessageRecieved,"\n user: ",user._id)
     });
   });
  
@@ -83,7 +87,28 @@ io.on("connection", (socket) => {
     socket.leave(userData._id);
   });
 });
+const options = {
+  definition:{
+    openapi:"3.0.0",
+    info:{
 
+      title:"Darknight APIs Documentation",
+    },
+    servers:[
+      {
+        url:"http:localhost:4500"
+      }
+    ]
+  },
+  apis:["./routes/*.js"]
+}
+// const swagger = swaggerDoc(options)
+const swagger = YAML.load(path.join(__dirname, 'swagger.yaml'));
+
+app.use("/api-docs",
+  swaggerUI.serve,
+  swaggerUI.setup(swagger)
+)
 //Allow server to be exposed on PORT 
 server.listen(port, () => {
   console.log(`Project Enabled Environment: ${process.env.NODE_ENV}`)

@@ -1,0 +1,402 @@
+openapi: 3.0.0
+info:
+  title: User, Chat, and Message API
+  description: API for managing users, chat groups, and messages.
+  version: 1.0.0
+paths:
+  # User Management Endpoints
+  /user/all:
+    get:
+      summary: Get all users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - Invalid or missing token
+  /user/create:
+    post:
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request - Invalid input
+  /user/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Authentication token
+        '401':
+          description: Unauthorized - Invalid credentials
+
+  # Chat Management Endpoints
+  /chat/group/create:
+    post:
+      summary: Create a new chat group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                users:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of user IDs to be added to the group
+              required:
+                - name
+                - users
+      responses:
+        '200':
+          description: Group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '400':
+          description: Bad Request - Invalid input
+        '500':
+          description: Internal Server Error
+  /chat/group/delete:
+    post:
+      summary: Delete a chat group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                _id:
+                  type: string
+                  description: ID of the group to delete
+              required:
+                - _id
+      responses:
+        '200':
+          description: Group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Bad Request - Invalid input
+        '404':
+          description: Not Found - Group not found
+        '500':
+          description: Internal Server Error
+  /chat/group/get:
+    get:
+      summary: Get all chat groups
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of chat groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Chat'
+        '500':
+          description: Internal Server Error
+  /chat/group/addtogroup:
+    post:
+      summary: Add a user to a chat group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chatId:
+                  type: string
+                userId:
+                  type: string
+              required:
+                - chatId
+                - userId
+      responses:
+        '200':
+          description: User added to group successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '400':
+          description: Bad Request - Invalid input
+        '404':
+          description: Not Found - Group or user not found
+  /chat/group/remove:
+    post:
+      summary: Remove a user from a chat group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chatId:
+                  type: string
+                userId:
+                  type: string
+              required:
+                - chatId
+                - userId
+      responses:
+        '200':
+          description: User removed from group successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+                  group:
+                    $ref: '#/components/schemas/Chat'
+        '400':
+          description: Bad Request - Invalid input
+        '404':
+          description: Not Found - Group or user not found
+  /chat/group/fetch:
+    get:
+      summary: Fetch all the groups user has joined.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of group chats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Chat'
+        '400':
+          description: Bad Request - Invalid input
+        '500':
+          description: Internal Server Error
+
+  # Message Management Endpoints
+  /message/all/{chatId}:
+    get:
+      summary: Get all messages in a chat
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          description: ID of the chat to fetch messages for. ChatID is the group ID user is joined with
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of messages in the chat
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: Bad Request - Invalid input
+        '404':
+          description: Not Found - Chat not found
+  /message/send:
+    post:
+      summary: Send a message
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                chat:
+                  type: string
+                readBy:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - content
+                - chat
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Bad Request - Invalid input
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique identifier for the user
+        name:
+          type: string
+          description: Name of the user
+        email:
+          type: string
+          description: Email address of the user
+        password:
+          type: string
+          description: User's password
+        createdAt:
+          type: string
+          format: date-time
+          description: When the user was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the user was last updated
+      required:
+        - name
+        - email
+        - password
+    Chat:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique identifier for the chat group
+        chatName:
+          type: string
+          description: Name of the chat group
+        users:
+          type: array
+          items:
+            type: string
+          description: Array of user IDs in the chat group
+        groupAdmin:
+          $ref: '#/components/schemas/User'
+          description: User who is the admin of the group
+        isGroupChat:
+          type: boolean
+          description: Indicates if it is a group chat
+        latestMessage:
+          $ref: '#/components/schemas/Message'
+          description: The latest message in the group
+        createdAt:
+          type: string
+          format: date-time
+          description: When the chat group was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the chat group was last updated
+      required:
+        - chatName
+        - users
+        - groupAdmin
+        - isGroupChat
+    Message:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique identifier for the message
+        content:
+          type: string
+          description: Content of the message
+        sender:
+          $ref: '#/components/schemas/User'
+          description: User who sent the message
+        chat:
+          $ref: '#/components/schemas/Chat'
+          description: Chat group where the message was sent
+        readBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+          description: Users who have read the message
+        createdAt:
+          type: string
+          format: date-time
+          description: When the message was sent
+      required:
+        - content
+        - sender
+        - chat
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
