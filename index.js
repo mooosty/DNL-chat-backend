@@ -60,14 +60,12 @@ io.on("connection", (socket) => {
     socket.join(room);
     console.log("User Joined Room: " + room);
   });
-  socket.on("typing", (data) => {
-    // Broadcast typing info to all users in the chat room
-    socket.to(data.chatId).emit("typing", { user: data.user });
-    console.log(data, "is typing")
+  // socket.on("typing", (room) => socket.in(room).emit("typing"));
+  socket.on("typing", ({ room, username }) => {
+    socket.in(room).emit("typing", { username });
+    console.log(username," is typing.")
   });
-   // socket.on("typing", (room) => socket.in(room).emit("typing"));
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
-
   socket.on("new message", (newMessageRecieved) => {
     var chat = newMessageRecieved.chat;
 
@@ -80,7 +78,16 @@ io.on("connection", (socket) => {
       console.log("new message received", newMessageRecieved,"\n user: ",user._id)
     });
   });
+
  
+  //Socket for message deleted so chat should be refreshed
+  socket.on("message unsent", (data) => {
+    const { messageId, chatId } = data;
+    console.log("in unsend message")
+    // Emit the message unsent event to all users in the chat
+    io.in(chatId).emit("message unsent", { messageId, chatId });
+    console.log(`Message ${messageId} in chat ${chatId} was unsent`);
+  });
 
   socket.off("setup", () => {
     console.log("USER DISCONNECTED");
