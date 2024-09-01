@@ -9,6 +9,10 @@ const swaggerUI = require("swagger-ui-express")
 const swaggerDoc = require("swagger-jsdoc")
 const YAML = require('yamljs');
 const path = require("path")
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createClient } = require("redis");
+const pubClient = createClient({ url: 'redis://localhost:6380' });
+const subClient = pubClient.duplicate();
 
 dotenv.config()
 app.use(cors())
@@ -28,7 +32,8 @@ app.get("/", (req, res) => {
 
 const user = require("./routes/user")
 const chat = require("./routes/chat");
-const message = require("./routes/message")
+const message = require("./routes/message");
+const { connectRedis, redisClient } = require("./redis/redisClient");
 
 //Endpoints
 app.use("/user", user)
@@ -46,6 +51,29 @@ const io = require("socket.io")(server, {
   },
 });
 
+// Function to publish messages to Redis
+const publishMessage = async (channel, message) => {
+  try {
+    await pubClient.publish(channel, JSON.stringify(message));
+    console.log(`Published message to ${channel}:`, message);
+  } catch (error) {
+    console.error('Error publishing message:', error);
+  }
+};
+subClient.on('error', (err) => {
+  console.error('Redis error:', err);
+});
+subClient.connect().then(() => {
+  console.log('Subscriber connected to Rediss');
+  subClient.subscribe('messages:66cdf062568204363af8a6c8', (message) => {
+    console.log('Received message:', message);
+  });
+}).catch((err) => {
+  console.error('Error connecting to Redis:', err);
+});
+io.adapter(createAdapter(pubClient, subClient));
+{
+   
 io.on("connection", (socket) => {
   socket.on("setup", (userData) => {
     console.log(`${userData.data._id} Connected to socket.io`);
@@ -66,18 +94,22 @@ io.on("connection", (socket) => {
     console.log(username," is typing.")
   });
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
-  socket.on("new message", (newMessageRecieved) => {
+  socket.on("new message", async (newMessageRecieved) => {
     var chat = newMessageRecieved.chat;
-
     if (!chat.users) return console.log("chat.users not defined");
-
+  
     chat.users.forEach((user) => {
       if (user._id == newMessageRecieved.sender._id) return;
-
+  
       socket.in(user._id).emit("message recieved", newMessageRecieved);
-      console.log("new message received", newMessageRecieved,"\n user: ",user._id)
+      console.log("new message received", newMessageRecieved, "\n user: ", user._id);
     });
+  
+    // Publish the message to the Redis channel for caching
+    await publishMessage(`messages:${chat._id}`, newMessageRecieved);
   });
+  
+  
 
  
   //Socket for message deleted so chat should be refreshed
@@ -94,6 +126,7 @@ io.on("connection", (socket) => {
     socket.leave(userData._id);
   });
 });
+}
 const options = {
   definition:{
     openapi:"3.0.0",
@@ -116,10 +149,28 @@ app.use("/api-docs",
   swaggerUI.serve,
   swaggerUI.setup(swagger)
 )
+// ...
+
+async function startServer() {
+  try {
+    await connectRedis();
+    // Start the server
+    server.listen(port, () => {
+      console.log(`Project Enabled Environment: ${process.env.NODE_ENV}`);
+      console.log(`Project is Live At: http://localhost:${process.env.PORT}`);
+      console.log("Socket enabled.");
+    });
+  } catch (err) {
+    console.error('Error starting server:', err);
+    process.exit(1);
+  }
+}
+
 //Allow server to be exposed on PORT 
-server.listen(port, () => {
-  console.log(`Project Enabled Environment: ${process.env.NODE_ENV}`)
-  console.log(`Project is Live At: http://localhost:${process.env.PORT}`)
-  console.log("Socket enabled.")
-})
+startServer();
+// server.listen(port, () => {
+//   console.log(`Project Enabled Environment: ${process.env.NODE_ENV}`)
+//   console.log(`Project is Live At: http://localhost:${process.env.PORT}`)
+//   console.log("Socket enabled.")
+// })
 
