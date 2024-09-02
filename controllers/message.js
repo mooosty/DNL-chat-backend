@@ -2,7 +2,6 @@ const Chat = require( "../models/chat");
 const Message =require( "../models/message");
 const User= require("../models/user");
 const { redisClient } = require("../redis/redisClient");
-// const redisClient = require("../redis/redisClient");
 
 
 
@@ -43,6 +42,42 @@ const sendMessage = async (req, res) => {
     }
   };
 
+
+  const updateMessageInRedis = async (messageId, updatedFields,content,userId) => {
+    if (!redisClient.isOpen) {
+      throw new Error('Redis client is not connected');
+    }
+    const messageKey = `messages:${messageId}`;
+    const messageStr = await redisClient.get(messageKey,async (err,result)=>{
+      if(err)
+      {
+        console.log(err)
+      }
+      else{
+        const message = JSON.parse(result)
+
+        const index = message.findIndex(msg => msg._id === updatedFields._id.toString());
+        if (index !== -1) {
+          // console.log(message[index],"before")
+          message[index].isDeleted = true; // Update the isDelete field to true
+          message[index].deletedBy = userId
+          message[index].content = content
+            redisClient.setex(messageKey, 3600, JSON.stringify(message), (err) => {
+              if (err) {
+                console.error('Error setting cache in Redis:', err);
+               
+              }
+              console.log("Cache set");
+              
+            });
+        } else {
+          console.error('Message ID not found in Redis:', messageKey);
+          return;
+        }
+      }
+    });
+  };
+  
 //un-send message
 const unSendMessage = async (req,res)=>{
   try {
@@ -54,13 +89,22 @@ const unSendMessage = async (req,res)=>{
     // Allow specific user and admin to delete a specific message
     if(message.sender._id.toString()===req.user._id.toString() || groupChat.groupAdmin._id == req.user._id.toString() )
     {
-      await Message.findByIdAndUpdate(req.params.messageId,{
+      const resultDelete  =await Message.findByIdAndUpdate(req.params.messageId,{
         $set:{
           isDeleted:true,
           deletedBy:req.user._id
         }
+      },{
+        new:true
       })
-      return res.status(201).send({status:true,message:"Message was successfully unsent."})
+      const responsible = req.user._id.toString() === groupChat.groupAdmin._id.toString() ? "Admin" : req.user.name;
+      console.log(resultDelete.sender,"sender")
+      const deleteText = `This message has been deleted by ${responsible}.`
+      // Update the message in Redis
+      await updateMessageInRedis(message.chat._id, message,deleteText,req.user._id);
+      
+
+       return res.status(201).send({status:true,message:"Message was successfully unsent."})
     }
     return res.status(401).send({status:false, error:"You can only un-send your own message."})
 
@@ -95,66 +139,6 @@ const unSendMessage = async (req,res)=>{
     }
   };
 
-  
-  // const allMessages = async (req, res) => {
-  //   const chatId = req.params.chatId;
-  
-  //   try {
-  //     console.log(chatId, "trying");
-  
-  //     // Use Promises for Redis operations
-  //     const cachedMessages = await new Promise((resolve, reject) => {
-  //       redisClient.get(`messages:${chatId}`, (err, result) => {
-  //         if (err) {
-  //           console.error('Error fetching from Redis:', err);
-  //           return reject(err);
-  //         }
-  //         resolve(result);
-  //       });
-  //     });
-  
-  //     if (cachedMessages) {
-  //       console.log("Cache hit");
-  //       return res.json(JSON.parse(cachedMessages));
-  //     } else {
-  //       console.log("Cache miss");
-  //       // Fetch from MongoDB
-  //       const findChat = await Chat.findById(chatId);
-  //       if (!findChat || findChat.users.filter(f => f.toString() === req.user._id.toString()).length === 0) {
-  //         return res.status(400).send({ status: false, error: "User not part of this group." });
-  //       }
-  
-  //       const messages = await Message.find({ chat: chatId })
-  //         .populate("sender")
-  //         .populate("chat");
-  
-  //       const finalDisplay = messages.map(m => {
-  //         if (m.isDeleted) {
-  //           const responsible = m.deletedBy._id.toString() === findChat.groupAdmin._id.toString() ? "Admin" : m.sender.name;
-  //           m.content = `This message has been deleted by ${responsible}`;
-  //         }
-  //         return m;
-  //       });
-  
-  //       console.log("Setting cache");
-  //       await new Promise((resolve, reject) => {
-  //         redisClient.setex(`messages:${chatId}`, 3600, JSON.stringify(finalDisplay), (err) => {
-  //           if (err) {
-  //             console.error('Error setting cache in Redis:', err);
-  //             return reject(err);
-  //           }
-  //           resolve();
-  //         });
-  //       });
-  
-  //       return res.json(finalDisplay);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error in allMessages:", error);
-  //     res.status(400).send({ status: false, error: error.message });
-  //   }
-  // };
-  
   const allMessages = async (req, res) => {
     const chatId = req.params.chatId;
   
@@ -179,10 +163,7 @@ const unSendMessage = async (req,res)=>{
         console.error('Error fetching from Redis:', err);
         return null;
       });
-  // console.log(red,"red")
-      console.log("Cached messages:", cachedMessages);
-  
-      if (cachedMessages) {
+    if (cachedMessages) {
         console.log("Cache hit");
         return res.json(JSON.parse(cachedMessages));
       } else {
@@ -237,60 +218,6 @@ const unSendMessage = async (req,res)=>{
     }
   };
   
-  
-  // module.exports = allMessages;
-  
-
-  // const allMessages = async (req, res) => {
-  //   try {
-  //     const { chatId } = req.params;
-  //     const { page = 1, limit = 20 } = req.query; // Default to page 1 and limit 20 if not provided
-  
-  //     console.log(chatId);
-  
-  //     const findChat = await Chat.findById(chatId);
-  //     if (findChat.users.filter(f => f.toString() === req.user._id.toString()).length === 0) {
-  //       return res.status(400).send({ status: false, error: "User not part of this group." });
-  //     }
-  
-  //     // Convert page and limit to integers
-  //     const pageNumber = parseInt(page, 10);
-  //     const pageSize = parseInt(limit, 10);
-  
-  //     // Calculate the number of messages to skip
-  //     const skip = (pageNumber - 1) * pageSize;
-  
-  //     // Fetch messages with pagination
-  //     const messages = await Message.find({ chat: chatId })
-  //       .skip(skip)
-  //       .limit(pageSize)
-  //       .populate("sender")
-  //       .populate("chat");
-  
-  //     const finalDisplay = messages.map(m => {
-  //       if (m.isDeleted) {
-  //         const responsible = m.deletedBy._id.toString() === findChat.groupAdmin._id.toString() ? "Admin" : m.sender.name;
-  //         m.content = `This message has been deleted by ${responsible}`;
-  //       }
-  //       return m;
-  //     });
-  
-  //     // Fetch total message count for pagination information
-  //     const totalMessages = await Message.countDocuments({ chat: chatId });
-  
-  //     res.json({
-  //       messages: finalDisplay,
-  //       totalMessages,
-  //       currentPage: pageNumber,
-  //       totalPages: Math.ceil(totalMessages / pageSize)
-  //     });
-  //   } catch (error) {
-  //     res.status(400).send({ status: false, error: error.message });
-  //     throw new Error(error.message);
-  //   }
-  // };
-  
-
   module.exports = 
   {
     allMessages,

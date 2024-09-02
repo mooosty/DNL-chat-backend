@@ -63,14 +63,15 @@ const publishMessage = async (channel, message) => {
 subClient.on('error', (err) => {
   console.error('Redis error:', err);
 });
-subClient.connect().then(() => {
-  console.log('Subscriber connected to Rediss');
-  subClient.subscribe('messages:66cdf062568204363af8a6c8', (message) => {
-    console.log('Received message:', message);
-  });
-}).catch((err) => {
-  console.error('Error connecting to Redis:', err);
-});
+async function connectRedisClients() {
+  try {
+    await pubClient.connect();
+    await subClient.connect();
+    console.log('Redis clients connected.');
+  } catch (error) {
+    console.error('Error connecting Redis clients:', error);
+  }
+}
 io.adapter(createAdapter(pubClient, subClient));
 {
    
@@ -105,6 +106,8 @@ io.on("connection", (socket) => {
       console.log("new message received", newMessageRecieved, "\n user: ", user._id);
     });
   
+     // Cache the message in Redis
+  await storeMessageInCache(chat._id, newMessageRecieved);
     // Publish the message to the Redis channel for caching
     await publishMessage(`messages:${chat._id}`, newMessageRecieved);
   });
@@ -145,6 +148,46 @@ const options = {
 // const swagger = swaggerDoc(options)
 const swagger = YAML.load(path.join(__dirname, 'swagger.yaml'));
 
+const storeMessageInCache = async (chatId, newMessage) => {
+  try {
+    const cacheKey = `messages:${chatId}`;
+    
+    // Retrieve the existing messages
+    const messagesStr = await redisClient.get(cacheKey,async(err,result)=>{
+      if(err)
+      {
+        console.log("failed to add cache")
+      }
+      else{
+        let messages = [];
+    
+        if (result) {
+          messages = JSON.parse(result);
+        }
+
+        console.log(result)
+        // Add the new message to the array
+        messages.push(newMessage);
+        
+        // Store the updated array back in Redis
+        await redisClient.set(cacheKey, JSON.stringify(messages),(err,response)=>{
+          if(err)
+            {
+              console.log("failed to add cache")
+            }
+            else{
+              console.log(`New message added and cached under key ${cacheKey}`);
+
+            }
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error adding new message to cache:', error);
+  }
+};
+
+
 app.use("/api-docs",
   swaggerUI.serve,
   swaggerUI.setup(swagger)
@@ -168,6 +211,7 @@ async function startServer() {
 
 //Allow server to be exposed on PORT 
 startServer();
+connectRedisClients()
 // server.listen(port, () => {
 //   console.log(`Project Enabled Environment: ${process.env.NODE_ENV}`)
 //   console.log(`Project is Live At: http://localhost:${process.env.PORT}`)
