@@ -24,6 +24,13 @@ You need to pass the below emit/on to work accordingly.
 
 ## Disconnect the user from socket server
 
+## Redis 
+we need to install redis-cli to manage our caching system to depreciate from storing messages on client local storage. Please check their website for downloading redis.
+
+## How to run
+1- Install all the necessary packages in root directory by running `npm install` or `yarn install`
+2- Open another CMD and run `redis-server --port 6380`
+3- Now you need to run `npm run dev`
 
 
 
