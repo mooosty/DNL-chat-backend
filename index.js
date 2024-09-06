@@ -11,8 +11,6 @@ const { connectRedis, pubClient, subClient, connectRedisClients } = require("./r
 const setupSocket = require("./controllers/socketHandler");
 const setupSwagger = require("./swagger/swagger");
 
-// const imageUpload = require("express-fileupload")
-
 dotenv.config()
 app.use(cors())
 app.use(express.json()); // to accept json data
@@ -24,8 +22,14 @@ app.get("/", (req, res) => {
 })
 //Connection for DB
 dbConnection()
+
+//Routes initialization
 setupRoutes(app);  
+
+// Swagger setup
 setupSwagger(app);
+
+//Server setup
 async function startServer() {   
   try {
     await connectRedis();
@@ -44,6 +48,7 @@ async function startServer() {
 
 //Allow server to be exposed on PORT 
 startServer();
+// Connect Redis
 connectRedisClients()
 
 
