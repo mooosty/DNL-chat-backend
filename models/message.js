@@ -1,5 +1,22 @@
 const mongoose = require("mongoose");
 
+const reactionSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'], // Add more types as needed
+      required: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  },
+  { _id: false } // Disable _id for reactions if not needed
+);
+
+
 const messageSchema = new mongoose.Schema(
   {
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -11,6 +28,8 @@ const messageSchema = new mongoose.Schema(
     isImage:{type:Boolean, default:false},
     isDocument:{type:Boolean, default:false},
     isVideo:{type:Boolean, default:false},
+    reactions:{type:[reactionSchema],default:[]},
+    reactionsCount:{type:Object, required:false}
 
   },
   { timestamps: true }

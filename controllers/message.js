@@ -114,7 +114,51 @@ const unSendMessage = async (req, res) => {
     console.log(error)
   }
 }
-// Access All Chats and paginate
+
+//Add reaction on single message
+const addReaction = async (req, res) => {
+  const { messageId, reactionType, remove } = req.body
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      // throw new Error('Message not found');
+      return res.status(400).send({ status: false, error: "Message not found." })
+    }
+    if (remove && typeof (remove) == "boolean") {
+      message.reactions = message.reactions.filter(
+        (reaction) => !(reaction.user.toString() === req.user._id.toString())
+      );
+      await message.save();
+      return res.status(201).send({ status: true, message: "Reaction removed." })
+    }
+    // Check if the user has already reacted with the same type
+    const existingReaction = message.reactions.find(
+      (reaction) => reaction.user.toString() === req.user._id.toString()
+    );
+    if (existingReaction) {
+      //Update reaction
+      existingReaction.type = reactionType
+    } else {
+      // Add the new reaction
+      message.reactions.push({ type: reactionType, user: req.user._id });
+    }
+
+    await message.save();
+    res.status(200).send({ status: true, message: "Reaction updated" })
+  } catch (error) {
+    res.status(500).send({ status: false, message: "Internal server error.", error: error })
+
+  }
+
+};
+
+const countReactionsIndividually = (reactions,type)=>{
+  return reactions.filter(f=>f.type==type).length
+}
+
+
+//Get messages without redis cache
 const allMessagesWORedis = async (req, res) => {
   try {
     console.log(req.params.chatId)
@@ -125,10 +169,21 @@ const allMessagesWORedis = async (req, res) => {
       .populate("chat");
     // console.log(req.params.chatId,findChat.users.filter)
     const finalDisplay = messages.map(m => {
+      m.reactionsCount={
+        totalCount: m.reactions.length,
+        like: countReactionsIndividually(m.reactions,"like"),
+        love:countReactionsIndividually(m.reactions,"love"),
+        haha: countReactionsIndividually(m.reactions,"haha"),
+        wow:countReactionsIndividually(m.reactions,"wow"),
+        sad: countReactionsIndividually(m.reactions,"sad"),
+        angry:countReactionsIndividually(m.reactions,"angry"),
+
+    }
       if (m.isDeleted) {
         const responsible = m.deletedBy._id.toString() == findChat.groupAdmin._id.toString() ? "Admin" : m.sender.name
         m.content = `This message has been deleted by ${responsible}`
       }
+      
       return m
     })
 
@@ -223,5 +278,6 @@ module.exports =
   allMessages,
   sendMessage,
   unSendMessage,
-  allMessagesWORedis
+  allMessagesWORedis,
+  addReaction
 }
