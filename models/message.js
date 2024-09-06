@@ -7,7 +7,11 @@ const messageSchema = new mongoose.Schema(
     chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat" },
     readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     isDeleted:{type:Boolean, default:false},
-    deletedBy:{type: mongoose.Schema.Types.ObjectId, ref: "User",required:false}
+    deletedBy:{type: mongoose.Schema.Types.ObjectId, ref: "User",required:false},
+    isImage:{type:Boolean, default:false},
+    isDocument:{type:Boolean, default:false},
+    isVideo:{type:Boolean, default:false},
+
   },
   { timestamps: true }
 );
