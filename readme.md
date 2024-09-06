@@ -24,6 +24,24 @@ You need to pass the below emit/on to work accordingly.
 
 ## Disconnect the user from socket server
 
+## Upload image API
+
+# Upload image
+The endpoint to upload the image is mentioned in swagger documentation `http://localhost:4500/api-docs`.
+The image is stored in `images` folder with the name you pass from api params. only png/jpg/jpeg are supported.
+Please note, when uploading the image you need to keep the name unique for every image to ensure identity and the `name` needs to be passed in to `send message` api. Like the body below,
+{
+    chatId:chatId,
+    content:ImageIdenticalName,
+    isImage:true
+}
+
+# Upload Videos
+The same process needs to be performed for uploading videos too. Currently video greater than 10MB is not supported to reduce the storage abuse on the server and keeping maximum storage available to levereage.
+
+# Upload documents
+To upload documents same process is required for the services to be uploaded in to the server. Document of any type is currently supported but limit size is 10MB maximum. 
+
 ## Redis 
 we need to install redis-cli to manage our caching system to depreciate from storing messages on client local storage. Please check their website for downloading redis.
 
