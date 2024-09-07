@@ -96,6 +96,52 @@ const storeMessageInCache = async (chatId, newMessage) => {
     console.error('Error adding new message to cache:', error);
   }
 };
+
+// Function to store reactions in the cache    
+const storeReactionInCache = async (chatId, messageId, reactionData) => {
+  try {
+    const cacheKey = `reactions:${chatId}`;
+    
+    // Retrieve the existing reactions
+    const reactionsStr = await redisClient.get(cacheKey, async (err, result) => {
+      if (err) {
+        console.log("Failed to add reaction to cache");
+      } else {
+        let reactions = [];        
+
+        if (result) {
+          reactions = JSON.parse(result);
+        }
+
+        // Find the message to add the reaction to
+        const message = reactions.find((msg) => msg.messageId === messageId);
+
+        if (message) {
+          // Add the new reaction to the message
+          message.reactions.push(reactionData);
+        } else {
+          // Add a new entry for the message with the reaction
+          reactions.push({
+            messageId: messageId,
+            reactions: [reactionData],
+          });
+        }
+
+        // Store the updated reactions array back in Redis
+        await redisClient.set(cacheKey, JSON.stringify(reactions), (err, response) => {
+          if (err) {
+            console.log("Failed to cache reaction");
+          } else {
+            console.log(`Reaction added and cached under key ${cacheKey}`);
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error("Error adding reaction to cache:", error);
+  }
+};
+
 // Export the client and connection function
 
-module.exports = { redisClient, connectRedis,publishMessage,connectRedisClients,storeMessageInCache,pubClient,subClient };
+module.exports = { redisClient, connectRedis,publishMessage,connectRedisClients,storeMessageInCache,storeReactionInCache,pubClient,subClient };

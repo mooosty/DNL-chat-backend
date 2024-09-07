@@ -1,5 +1,5 @@
 const { createAdapter } = require("@socket.io/redis-adapter");
-const { storeMessageInCache, publishMessage } = require("../redis/redisClient");
+const { storeMessageInCache, publishMessage, storeReactionInCache } = require("../redis/redisClient");
 
 function setupSocket(server, pubClient, subClient) {
   const io = require("socket.io")(server, {
@@ -50,12 +50,26 @@ function setupSocket(server, pubClient, subClient) {
     });
 
     socket.on("message unsent", (data) => {
-      const { messageId, chatId } = data;
+      const { messageId, chatId } = data;   
       console.log("in unsend message");
       io.in(chatId).emit("message unsent", { messageId, chatId });
       console.log(`Message ${messageId} in chat ${chatId} was unsent`);
-    });
+    });           
 
+     // Add reaction event            
+     socket.on("addReaction", async (reactionData) => {
+      const { messageId, chatId, reaction, userId } = reactionData;
+          
+      // Broadcast the reaction to other users in the chat
+      io.in(chatId).emit("reaction added", reactionData);
+
+      // Cache the reaction in Redis
+      await storeReactionInCache(chatId, messageId, reactionData);
+
+      // Publish the reaction event for other nodes to cache it
+      await publishMessage(`reactions:${chatId}`, reactionData);
+    });
+    
     socket.off("setup", () => {
       console.log("USER DISCONNECTED");
       socket.leave(userData._id);
