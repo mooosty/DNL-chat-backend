@@ -46,7 +46,7 @@ const userRoutes = require("./user");
 const chatRoutes = require("./chat");
 const messageRoutes = require("./message");
 const { protect } = require("../middleware/authProtection");
-
+  
 const setupRoutes = (app) => {
   app.use("/user", userRoutes);
   app.use("/chat", protect, chatRoutes);

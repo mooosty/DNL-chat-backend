@@ -1,22 +1,22 @@
 const mongoose = require("mongoose");
-
+        
 const reactionSchema = new mongoose.Schema(
-  {
-    type: {
+  {                
+    type: {   
       type: String,
       enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'], // Add more types as needed
       required: true,
-    },
-    user: {
+    },      
+    user: {   
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    },   
   },
   { _id: false } // Disable _id for reactions if not needed
-);
-
-
+);                       
+              
+          
 const messageSchema = new mongoose.Schema(
   {
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
