@@ -45,6 +45,9 @@ To upload documents same process is required for the services to be uploaded in 
 # Redis 
 we need to install `redis-cli` to manage our caching system to depreciate from storing messages on client local storage. Please check their website for downloading redis.
 
+Or use this link
+https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi
+
 ## How to run
 1- Install all the necessary packages in root directory by running `npm install` or `yarn install`
 2- Open another CMD and run `redis-server --port 6380`
