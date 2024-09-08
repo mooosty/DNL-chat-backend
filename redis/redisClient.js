@@ -97,50 +97,40 @@ const storeMessageInCache = async (chatId, newMessage) => {
   }
 };
 
-// Function to store reactions in the cache    
 const storeReactionInCache = async (chatId, messageId, reactionData) => {
   try {
     const cacheKey = `reactions:${chatId}`;
+    console.log(`Fetching reactions from cache with key: ${cacheKey}`);
     
-    // Retrieve the existing reactions
-    const reactionsStr = await redisClient.get(cacheKey, async (err, result) => {
-      if (err) {
-        console.log("Failed to add reaction to cache");
-      } else {
-        let reactions = [];        
+    const result = await redisClient.get(cacheKey);
+    let reactions = [];
 
-        if (result) {
-          reactions = JSON.parse(result);
-        }
+    if (result) {
+      reactions = JSON.parse(result);
+    }
 
-        // Find the message to add the reaction to
-        const message = reactions.find((msg) => msg.messageId === messageId);
+    console.log(`Current reactions in cache:`, reactions);
+    
+    const message = reactions.find((msg) => msg.messageId === messageId);
 
-        if (message) {
-          // Add the new reaction to the message
-          message.reactions.push(reactionData);
-        } else {
-          // Add a new entry for the message with the reaction
-          reactions.push({
-            messageId: messageId,
-            reactions: [reactionData],
-          });
-        }
+    if (message) {
+      console.log(`Found existing message with reactions, adding new reaction: ${reactionData}`);
+      message.reactions.push(reactionData);
+    } else {
+      console.log(`Message not found in cache, creating new entry.`);
+      reactions.push({
+        messageId: messageId,
+        reactions: [reactionData],
+      });
+    }
 
-        // Store the updated reactions array back in Redis
-        await redisClient.set(cacheKey, JSON.stringify(reactions), (err, response) => {
-          if (err) {
-            console.log("Failed to cache reaction");
-          } else {
-            console.log(`Reaction added and cached under key ${cacheKey}`);
-          }
-        });
-      }
-    });
+    await redisClient.set(cacheKey, JSON.stringify(reactions));
+    console.log(`Reaction added and cached under key ${cacheKey}`);
   } catch (error) {
     console.error("Error adding reaction to cache:", error);
   }
 };
+
 
 // Export the client and connection function
 

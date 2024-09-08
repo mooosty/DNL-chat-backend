@@ -1,6 +1,7 @@
 const generateToken = require("../db/token")
 const User = require("../models/user")
 const bcrypt = require("bcryptjs")
+
 const createUser = async (req, res) => {
     try {
         let { password } = req.body
@@ -13,10 +14,9 @@ const createUser = async (req, res) => {
     } catch (error) {
         res.status(500).send({ status: false, error: error, message: "Internal server error." })
         console.error("Error creating user:", error); // Log the error for debugging
-
     }
 }
-
+     
 const loginUser = async (req,res)=>{
     try {
         const {email,password} = req.body
