@@ -12,11 +12,11 @@ const reactionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },   
-  },
+  },   
   { _id: false } // Disable _id for reactions if not needed
-);                       
+);                         
               
-          
+               
 const messageSchema = new mongoose.Schema(
   {
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

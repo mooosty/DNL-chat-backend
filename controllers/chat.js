@@ -117,7 +117,7 @@ const removeUserFromGroup = async (req, res) => {
 }
 
 
-//Get Group Chats
+//Get Group Chats 
 const fetchChats = async (req, res) => {
     try {
         Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
