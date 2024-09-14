@@ -20,6 +20,10 @@ function setupSocket(server, pubClient, subClient) {
       socket.emit("connected");
     });
 
+    socket.on("joinRequest", (groupId, adminId) => {
+      io.to(adminId).emit("newJoinRequest", { groupId, message: "User requested to join your group!" });
+      console.log(`Join request for group ${groupId} sent to admin ${adminId}`);
+    });
     socket.on("join chat", (room) => {
       socket.join(room);
       console.log("User Joined Room: " + room);

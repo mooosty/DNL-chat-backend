@@ -8,6 +8,8 @@ const createUser = async (req, res) => {
     try {
         let { password } = req.body
         const findUser = await User.findOne({ email: req.body.email })
+        const findUserName = await User.findOne({username:req.body.username})
+        if(findUserName) return res.status(400).send({status:false,error:"Username not available."})
         if (findUser) return res.status(400).send({ status: false, error: "User with this email already exists. Try a different one." })
         const hashedPassword = await generateHashedPassword(password);
         const user = new User({ ...req.body, password: hashedPassword });
@@ -34,8 +36,17 @@ const loginUser = async (req, res) => {
     }
 }
 
+//API (protected) to search for users
+
 const getUsers = async (req, res) => {
     try {
+        const {search}  = req.query
+        if(search){
+        const users = await User.find({
+            username: { $regex: search, $options: "i" }
+       } )
+       return res.status(201).send({status:true , data:users})
+        }
         const users = await User.find()
         res.status(201).send({ status: true, data: users })
     } catch (error) {

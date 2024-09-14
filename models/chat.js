@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
-
+const inviteSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  createdAt: { type: Date, default: Date.now }
+});
 const chatModel = new mongoose.Schema(
   {
     chatName: { type: String, trim: true },
@@ -10,6 +13,8 @@ const chatModel = new mongoose.Schema(
       ref: "Message",
     },
     groupAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    requestedInvites:[{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    invitesRejected:[inviteSchema]
   },
   { timestamps: true }
 );

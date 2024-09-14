@@ -1,16 +1,17 @@
 const { default: mongoose } = require("mongoose");
 const Chat = require("../models/chat");
 const User = require("../models/user");
+const { sendNotificationEmail } = require("../email");
 
 
 const createAGroup = async (req, res) => {
     let { name, users } = req.body;
 
-    if (!name) return res.status(400).send({ status: false, message: "Group should have a name." });
+    if (!name) return res.status(400).send({ status: false, error: "Group should have a name." });
 
     let userArray = users
-    if (!Array.isArray(users)) return res.status(400).send({ status: false, message: "Invalid User data format." })
-    if (userArray.length < 2) return res.status(400).send({ status: false, message: "Minimum 2 members are required." });
+    if (!Array.isArray(users)) return res.status(400).send({ status: false, error: "Invalid User data format." })
+    if (userArray.length < 2) return res.status(400).send({ status: false, error: "Minimum 2 members are required." });
     console.log(userArray, req.user._id.toString())
     if (userArray.includes(req.user._id.toString())) return res.status(400).send({ status: false, message: "Cannot create a group with yourself." });
     const checkValid = checkValidFormat(userArray)
@@ -18,7 +19,7 @@ const createAGroup = async (req, res) => {
     // Check if all users exist
     const existingUsers = await User.find({ _id: { $in: userArray } });
     if (existingUsers.length !== userArray.length) {
-        return res.status(400).send({ status: false, message: "One or more users do not exist." });
+        return res.status(400).send({ status: false, error: "One or more users do not exist." });
     }
 
     userArray.push(req.user._id);  // Add the current user to the group
@@ -88,13 +89,17 @@ const addToGroup = async (req, res) => {
 const removeUserFromGroup = async (req, res) => {
     try {
         const { chatId, userId } = req.body
+        let verifyAuth =false
+    
+        console.log(userId,req.user._id.toString())
         if (!chatId) return res.status(400).send({ status: false, error: "chat ID is required." })
         if (!userId) return res.status(400).send({ status: false, error: "user ID is required." })
         const findGroup = await Chat.findById(chatId)
         const findUser = await User.findById(userId)
         if (!findGroup) return res.status(404).send({ status: false, error: "No group exists." })
         if (!findUser) return res.status(404).send({ status: false, error: "No user exists." })
-        if (findGroup.groupAdmin._id.toString() != req.user._id.toString()) return res.status(400).send({ status: false, error: "Only Channel Admin can remove the user from group." })
+        if(findGroup.groupAdmin._id.toString() == req.user._id.toString() || req.user._id.toString() == userId){ verifyAuth =true}
+        if(!verifyAuth)  return res.status(400).send({ status: false, error: "Only Channel Admin can remove the user from group." })
         const userIndex = findGroup.users.findIndex((user) => user.toString() === userId);
 
         if (userIndex === -1) {
@@ -138,6 +143,128 @@ const fetchChats = async (req, res) => {
     }
 };
 
+//Request Invite
+const requestInvite = async (req, res) => {
+    try {
+        const { chatId } = req.body
+        if (!chatId) return res.status(400).send({ status: false, error: "chat ID is required." })
+        const findGroup = await Chat.findById(chatId)
+        const findUser = await User.findById(req.user._id.toString())
+        if (!findGroup) return res.status(404).send({ status: false, error: "No group exists." })
+        if (!findUser) return res.status(404).send({ status: false, error: "No user exists." })
+        const isUserAlreadyMember = findGroup.users.some(
+            (user) => user.toString() === req.user._id.toString()
+        );
+        const isUserAlreadyInvited = findGroup.requestedInvites.some(
+            (user) => user.toString() === req.user._id.toString()
+        );
+         const isUserAlreadyRejected = findGroup.invitesRejected.filter(
+            (user) => user.user.toString() === req.user._id.toString()
+        );
+        const now = Date.now();
+        const isLessThan24Hours = now - (24 * 60 * 60 * 1000); // Timestamp for 24 hours ago
+        
+        // Check if the user has any rejections
+        if (isUserAlreadyRejected.length > 0) {
+            const mostRecentRejectionDate = new Date(isUserAlreadyRejected[0].createdAt).getTime(); 
+        
+            // Check if the most recent rejection is less than 24 hours old
+            console.log(mostRecentRejectionDate,isLessThan24Hours)
+            if (mostRecentRejectionDate > isLessThan24Hours) {
+                return res.status(400).json({ status: false, error: "Invitation cannot be sent. Try again in 24 hours." });
+            }
+        }
+        if (isUserAlreadyInvited) {
+            return res.status(400).send({ status: false, error: "Invitation is already sent to the group admin." });
+        }
+        if (isUserAlreadyMember) {
+            return res.status(400).send({ status: false, error: "User is already a member of the group." });
+        }
+        //Check if user is blocked or restricted from joining the group. (Needs to be done later)
+        else {
+            //Now request the invite as the user as user does not exist.
+            const updateInvitee = await Chat.findByIdAndUpdate(chatId,
+                {
+                    $push: { requestedInvites: req.user._id },
+                },
+                {
+                    new: true,
+                }
+            )
+
+            //Send notification email to group admin on any invite comes to join what user requested.
+            await sendNotificationEmail(findGroup.groupAdmin.email, findUser.username, findGroup.chatName)
+            res.status(200).send({ status: true, message: "Invitation sent to the group admin." })
+
+
+        }
+    } catch (error) {
+        console.log(error)
+        return res.status(500).send({ status: false, error: "Interal Server Error" })
+    }
+}
+
+//Accept received invitation (group admin)
+const respondToInvite = async (req, res) => {
+    try {
+        const { chatId, userId } = req.body;
+        const { response } = req.query
+        let responseQuery = false
+        if (!response) return res.status(400).send({ status: false, error: "Query response is missing." })
+        if (response.toLowerCase() == "accept") responseQuery = true
+        if (response.toLowerCase() == "reject") responseQuery = true
+        if (!responseQuery) return res.status(400).send({ status: false, error: "Invalid response passed in query." })
+        if (!chatId) return res.status(400).send({ status: false, error: "chat ID is required." })
+        if (!userId) return res.status(400).send({ status: false, error: "user ID is required." })
+        const findGroup = await Chat.findById(chatId).populate("users")
+        const findUser = await User.findById(userId)
+        if (!findGroup) return res.status(404).send({ status: false, error: "No group exists." })
+        if (!findUser) return res.status(404).send({ status: false, error: "No user exists." })
+            console.log(findGroup)
+        if (findGroup.groupAdmin._id.toString() != req.user._id.toString()) return res.status(400).send({ status: false, error: "Admin Access Required" })
+        const isUserAlreadyMember = findGroup.users.some(
+            (user) => user.toString() === userId
+        );
+        const isUserAlreadyInvited = findGroup.requestedInvites.some(
+            (user) => user.toString() === userId
+        );
+       
+        if (!isUserAlreadyInvited) {
+            return res.status(400).send({ status: false, error: "No such active invite." })
+        }
+        if (isUserAlreadyMember) {
+            return res.status(400).send({ status: false, error: "User is already a member of the group." });
+        }
+        const filterInvite = findGroup.requestedInvites.filter(f => f._id.toString() != userId)
+        let updateFields = {};
+        if (response.toLowerCase() === "accept") {
+            updateFields = {
+                    $push: { users: userId },
+                    $set: { requestedInvites: filterInvite }
+            }
+        } else {
+            updateFields = {
+                $push: { invitesRejected: { user: userId } },
+                $set: { requestedInvites: filterInvite }
+            }
+        }
+        const data =await Chat.findByIdAndUpdate(chatId, updateFields,{new:true})
+        res.status(200).send({status:true,message:`${response} reqest for ${findUser.username} was successful.`, data:data})
+
+    //Add user to the group now as all required checks are passed as above
+
+} catch (error) {
+    console.log(error.message)
+    return res.status(500).send({ status: false, error: "Internal Server Error.", message: error.message })
+}
+}
+
+//Accept received invitation (user => invite sent by admin/owner of the group)
+
+//Discard received invitation (group admin)
+
+//Discard received invitation (user => invite sent by admin/owner of the group)
+
 
 //Get All Groups
 const getAllGroups = async (req, res) => {
@@ -176,4 +303,4 @@ function checkValidFormat(userArray) {
     }
 }
 
-module.exports = { createAGroup, deleteGroup, getAllGroups, addToGroup, fetchChats, removeUserFromGroup }
+module.exports = { createAGroup, deleteGroup, getAllGroups, addToGroup, fetchChats, removeUserFromGroup, requestInvite, respondToInvite }
