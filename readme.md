@@ -102,6 +102,7 @@ export default GroupChatComponent;
 
 
 ## Disconnect the user from socket server
+It is essential to handle disconnections gracefully. Ensure you implement cleanup logic within your components to close the socket connection when the user leaves the chat or the component unmounts.
 
 # Upload image API
 
