@@ -69,7 +69,7 @@ paths:
                     description: Authentication token
         '401':
           description: Unauthorized - Invalid credentials
-
+  /user/print:
   # Chat Management Endpoints
   /chat/group/create:
     post:
@@ -240,8 +240,153 @@ paths:
           description: Bad Request - Invalid input
         '500':
           description: Internal Server Error
+  /chat/group/invite/request:
+    post:
+      summary: Send join request to channel admin.
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The request body containing the chat ID.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chatId:
+                  type: string
+                  description: The ID of the chat group to request the invite.
+              required:
+                - chatId
+      responses:
+        '200':
+          description: Send join request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Bad request. Either the chatId is missing, user is already a member or already invited.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  error:
+                    type: string
+        '404':
+          description: Chat group or user not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  error:
+                    type: string
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  error:
+                    type: string
+  /chat/group/invite:
+    post:
+      summary: Admin responds to a user's invite request to join the group.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: response
+          required: true
+      schema:
+          type: string
+          enum: [accept, reject]
+          description: Response to the invite, either 'accept' or 'reject'.
+      requestBody:
+        description: The request body containing chatId and userId.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chatId:
+                  type: string
+                  description: The ID of the chat group.
+                userId:
+                  type: string
+                  description: The ID of the user responding to the invite.
+                  required:
+                    - chatId
+                    - userId
+      responses:
+        '200':
+          description: Responded to the invite successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    description: Updated group data after the response.
+        '400':
+          description: Bad request. Either the chatId, userId, or response is invalid.
+          content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                error:
+                  type: string
+        '404':
+          description: Chat group or user not found.
+          content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                error:
+                  type: string
+        '500':
+          description: Internal server error.
+          content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                error:
+                  type: string
+                message:
+                  type: string
+    
+  
 
-  # Message Management Endpoints
+ # Message Management Endpoints
   /message/all/{chatId}:
     get:
       summary: Get all messages in a chat

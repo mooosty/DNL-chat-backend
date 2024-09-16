@@ -5,6 +5,9 @@ const path = require("path");
 function setupSwagger(app) {
   // Load the swagger.yaml file
   const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
+  app.get("/gett",(req,res)=>{
+    res.send(swaggerDocument)
+  })
 
   // Setup the Swagger UI
   app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerDocument));
