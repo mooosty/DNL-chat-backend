@@ -102,6 +102,7 @@ export default GroupChatComponent;
 
 
 ## Disconnect the user from socket server
+It is essential to handle disconnections gracefully. Ensure you implement cleanup logic within your components to close the socket connection when the user leaves the chat or the component unmounts.
 
 # Upload image API
 
@@ -130,9 +131,9 @@ Or use this link
 https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi
 
 ## How to run
-1- Install all the necessary packages in root directory by running `npm install` or `yarn install`
-2- Open another CMD and run `redis-server --port 6380`
-3- Now you need to run `npm run dev`
+- Install all the necessary packages in root directory by running `npm install` or `yarn install`
+- Open another CMD and run `redis-server --port 6380`
+- Now you need to run `npm run dev`
 
 
 
