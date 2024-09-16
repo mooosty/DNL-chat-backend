@@ -57,6 +57,27 @@ function setupSocket(server, pubClient, subClient) {
       }
     });
 
+    socket.on("leavegroup", async (newMessageReceived) => {
+      const chat = newMessageReceived.chat;
+      if (!chat.users) return console.log("chat.users not defined");
+
+      chat.users.forEach((user) => {
+        if (user._id == newMessageReceived.sender._id) return;
+
+        socket.in(user._id).emit("userleavegroup", newMessageReceived);
+        console.log("User left the group", newMessageReceived, "\nUser: ", user._id);
+      });
+
+      try {
+        // Cache the message in Redis
+        await storeMessageInCache(chat._id, newMessageReceived);
+        // Publish the message to the Redis channel for caching
+        await publishMessage(`messages:${chat._id}`, newMessageReceived);
+      } catch (error) {
+        console.error("Error caching or publishing message:", error);
+      }
+    });
+
     socket.on("message unsent", async (data) => {
       const { messageId, chatId } = data;
       console.log("In unsend message");
