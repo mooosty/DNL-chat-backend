@@ -109,11 +109,13 @@ export default GroupChatComponent;
 The endpoint to upload the image is mentioned in swagger documentation `http://localhost:4500/api-docs`.
 The image is stored in `images` folder with the name you pass from api params. only png/jpg/jpeg are supported.
 Please note, when uploading the image you need to keep the name unique for every image to ensure identity and the `name` needs to be passed in to `send message` api. Like the body below,
-\n{
-  \n  chatId:chatId,
-    \ncontent:ImageIdenticalName,
-    \nisImage:true
-\n}
+```javascript
+{
+    "chatId":chatId,
+    "content":ImageIdenticalName,
+    "isImage":true
+}
+```
 
 ## Upload Videos
 The same process needs to be performed for uploading videos too. Currently video greater than 10MB is not supported to prevent the storage abuse on the server and keeping maximum storage available to levereage.
