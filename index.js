@@ -10,11 +10,11 @@ const setupRoutes = require("./routes");
 const { connectRedis, pubClient, subClient, connectRedisClients } = require("./redis/redisClient");
 const setupSocket = require("./controllers/socketHandler");
 const setupSwagger = require("./swagger/swagger");
-   
+      
 dotenv.config()
 app.use(cors())   
 app.use(express.json()); // to accept json data
-const port = process.env.PORT   
+const port = process.env.PORT      
                     
 //Home endpoint
 app.get("/", (req, res) => {
@@ -25,9 +25,9 @@ dbConnection()
 
 //Routes initialization
 setupRoutes(app);      
-   
-// Swagger setup
-setupSwagger(app);    
+      
+// Swagger setup   
+setupSwagger(app);       
 
 //Server setup
 async function startServer() {   

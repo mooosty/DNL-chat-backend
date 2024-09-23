@@ -14,16 +14,18 @@ const userSchema = new mongoose.Schema({
     email:{
         type:String,
         required:true
-    },
+    },                             
     password:{
         type:String,
         required:true
-    },
+    },                               
     profilePhoto:{
         type:String,
         required:true
-    }
-},
+    },                 
+    unreadCount: { type: Number, default: 0 }, // Field to track unread messages
+                                             
+},                 
 {
     timeStamps:true
 })

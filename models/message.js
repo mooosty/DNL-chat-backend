@@ -32,7 +32,7 @@ const messageSchema = new mongoose.Schema(
     reactionsCount:{type:Object, required:false}
 
   },
-  { timestamps: true }
+  { timestamps: true }   
 );
 
 const Message = mongoose.model("Message", messageSchema);

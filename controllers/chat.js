@@ -29,7 +29,9 @@ const createAGroup = async (req, res) => {
             chatName: name,
             users: userArray,
             groupAdmin: req.user._id,
-            isGroupChat: true
+            isGroupChat: true,
+            unreadCounts: new Map(userArray.map(userId => [userId.toString(), 0])), // Initialize unreadCounts
+
         });
 
         const fullGroupChat = await Chat.findOne({ _id: createGroup._id })
@@ -85,7 +87,7 @@ const addToGroup = async (req, res) => {
 };
 
 
-//Remove User from Group
+//Remove User from Group   
 const removeUserFromGroup = async (req, res) => {
     try {
         const { chatId, userId } = req.body
@@ -123,25 +125,50 @@ const removeUserFromGroup = async (req, res) => {
 
 
 //Get Group Chats 
+// const fetchChats = async (req, res) => {
+//     try {
+//         Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
+//             .populate("users", "-password")
+//             .populate("groupAdmin", "-password")
+//             .populate("latestMessage")
+//             .sort({ updatedAt: -1 })
+//             .then(async (results) => {
+//                 results = await User.populate(results, {
+//                     path: "latestMessage.sender",
+//                     select: "name pic email",
+//                 });
+//                 res.status(200).send(results);
+//             });
+//     } catch (error) {
+//         res.status(400);
+//         throw new Error(error.message);
+//     }
+// };
+
 const fetchChats = async (req, res) => {
     try {
-        Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
+        const chats = await Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
             .populate("users", "-password")
             .populate("groupAdmin", "-password")
             .populate("latestMessage")
-            .sort({ updatedAt: -1 })
-            .then(async (results) => {
-                results = await User.populate(results, {
-                    path: "latestMessage.sender",
-                    select: "name pic email",
-                });
-                res.status(200).send(results);
-            });
+            .sort({ updatedAt: -1 });
+
+        const results = await User.populate(chats, {
+            path: "latestMessage.sender",
+            select: "name pic email",   
+        });     
+          
+        const chatsWithUnreadCounts = results.map(chat => ({
+            ...chat.toObject(),
+            unreadCount: chat.unreadCounts.get(req.user._id.toString()) || 0 // Include unread count
+        }));      
+                
+        res.status(200).send(chatsWithUnreadCounts);
     } catch (error) {
-        res.status(400);
-        throw new Error(error.message);
+        res.status(400).send({ status: false, error: error.message });
     }
 };
+
 
 //Request Invite
 const requestInvite = async (req, res) => {
@@ -224,14 +251,14 @@ const respondToInvite = async (req, res) => {
         if (findGroup.groupAdmin._id.toString() != req.user._id.toString()) return res.status(400).send({ status: false, error: "Admin Access Required" })
         const isUserAlreadyMember = findGroup.users.some(
             (user) => user.toString() === userId
-        );
+        );  
         const isUserAlreadyInvited = findGroup.requestedInvites.some(
             (user) => user.toString() === userId
         );
        
         if (!isUserAlreadyInvited) {
             return res.status(400).send({ status: false, error: "No such active invite." })
-        }
+        }  
         if (isUserAlreadyMember) {
             return res.status(400).send({ status: false, error: "User is already a member of the group." });
         }
@@ -243,7 +270,7 @@ const respondToInvite = async (req, res) => {
                     $set: { requestedInvites: filterInvite }
             }
         } else {
-            updateFields = {
+            updateFields = {  
                 $push: { invitesRejected: { user: userId } },
                 $set: { requestedInvites: filterInvite }
             }
@@ -253,7 +280,7 @@ const respondToInvite = async (req, res) => {
 
     //Add user to the group now as all required checks are passed as above
 
-} catch (error) {
+} catch (error) {  
     console.log(error.message)
     return res.status(500).send({ status: false, error: "Internal Server Error.", message: error.message })
 }
@@ -274,7 +301,7 @@ const getAllGroups = async (req, res) => {
         res.status(201).send({ status: true, data: getChat })
 
     } catch (error) {
-        console.error(error);
+        console.error(error);   
         res.status(500).send({ status: false, error: "Internal Server Error" });
 
     }

@@ -19,7 +19,7 @@ const createUser = async (req, res) => {
         res.status(500).send({ status: false, error: error, message: "Internal server error." })
         console.error("Error creating user:", error); // Log the error for debugging
     }
-}
+}    
 
 const loginUser = async (req, res) => {
     try {
@@ -33,8 +33,8 @@ const loginUser = async (req, res) => {
         res.status(500).send({ status: false, error: error, message: "Internal server error." })
         console.error("Error creating user:", error); // Log the error for debugging
 
-    }
-}
+    }   
+}   
 
 //API (protected) to search for users
 
@@ -53,21 +53,20 @@ const getUsers = async (req, res) => {
         res.status(500).send({ status: false, error: error, message: "Internal server error." })
         console.error("Error creating user:", error); // Log the error for debugging
 
-    }
+    }   
 }
 
 
-//GET HASH 
+//GET HASH    
 const getHash =async(req,res)=>{
     try {
         const hash = Hash.findOne({userid:req.body.userid})
         return res.send(hash)
-    } catch (error) {
+    } catch (error) {      
         return res.send(error)
-        
-    }
-}
-
+    }    
+}     
+           
 //SEND RECOVER PASSWORD
 const sendRecoveryLink = async (req, res) => {
     try {

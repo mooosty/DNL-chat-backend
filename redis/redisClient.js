@@ -59,39 +59,26 @@ async function connectRedisClients() {
   }
 }        
 const storeMessageInCache = async (chatId, newMessage) => {
+  const cacheKey = `messages:${chatId}`;
+
   try {
-    const cacheKey = `messages:${chatId}`;
-    
-    // Retrieve the existing messages
-    const messagesStr = await redisClient.get(cacheKey,async(err,result)=>{
-      if(err)
-      {
-        console.log("failed to add cache")
-      }
-      else{
-        let messages = [];
-    
-        if (result) {
-          messages = JSON.parse(result);
-        }
+    // Retrieve the existing messages from Redis
+    let messagesStr = await redisClient.get(cacheKey);
 
-        console.log(result)
-        // Add the new message to the array
-        messages.push(newMessage);
-        
-        // Store the updated array back in Redis
-        await redisClient.set(cacheKey, JSON.stringify(messages),(err,response)=>{
-          if(err)
-            {
-              console.log("failed to add cache")
-            }
-            else{
-              console.log(`New message added and cached under key ${cacheKey}`);
+    let messages = [];
+    if (messagesStr) {
+      // Parse existing messages
+      messages = JSON.parse(messagesStr);
+    }
 
-            }
-        });
-      }
-    });
+    // Add the new message to the array
+    messages.push(newMessage);
+
+    // Store the updated array back in Redis
+    await redisClient.set(cacheKey, JSON.stringify(messages));
+    
+    console.log(`New message added and cached under key ${cacheKey}`);
+
   } catch (error) {
     console.error('Error adding new message to cache:', error);
   }
@@ -131,7 +118,79 @@ const storeReactionInCache = async (chatId, messageId, reactionData) => {
   }
 };
 
+// Increment unread message count in Redis
+const incrementUnreadCount = async (userId, chatId) => {
+  const cacheKey = `unreadCount:${userId}:${chatId}`;
+  try {
+    const currentCount = await redisClient.get(cacheKey);
+    const updatedCount = currentCount ? parseInt(currentCount) + 1 : 1;
+    await redisClient.set(cacheKey, updatedCount);
+    return updatedCount;
+  } catch (error) {
+    console.error('Error incrementing unread count:', error);
+  }
+};
 
+// Reset unread message count when the user views the chat
+const resetUnreadCount = async (userId, chatId) => {
+  const cacheKey = `unreadCount:${userId}:${chatId}`;
+  try {
+    await redisClient.set(cacheKey, 0);
+  } catch (error) {
+    console.error('Error resetting unread count:', error);
+  }
+};
+
+// Get unread message count for a specific chat
+const getUnreadCount = async (userId, chatId) => {
+  const cacheKey = `unreadCount:${userId}:${chatId}`;
+  try {
+    const count = await redisClient.get(cacheKey);
+    return count ? parseInt(count) : 0;
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+  }
+};      
+
+// Mark message as seen in Redis
+const markMessageAsSeen = async (messageId, userId) => {
+  const cacheKey = `messageSeen:${messageId}`;
+  try {
+    // Add the userId to the set of users who have seen the message
+    await redisClient.sAdd(cacheKey, userId);
+    console.log(`User ${userId} marked as having seen message ${messageId}`);
+  } catch (error) {
+    console.error('Error marking message as seen in Redis:', error);
+  }
+};      
+
+// Get the list of users who have seen the message
+const getMessageSeenBy = async (messageId) => {
+  const cacheKey = `messageSeen:${messageId}`;
+  try {
+    // Get all the users who have seen this message
+    const seenBy = await redisClient.sMembers(cacheKey);
+    return seenBy;  // Returns an array of user IDs
+  } catch (error) {
+    console.error('Error getting message seen status from Redis:', error);
+    return [];
+  }
+};           
+             
 // Export the client and connection function
 
-module.exports = { redisClient, connectRedis,publishMessage,connectRedisClients,storeMessageInCache,storeReactionInCache,pubClient,subClient };
+module.exports = { 
+  redisClient, 
+  connectRedis, 
+  publishMessage, 
+  connectRedisClients, 
+  storeMessageInCache, 
+  storeReactionInCache, 
+  incrementUnreadCount, 
+  resetUnreadCount, 
+  getUnreadCount, 
+  markMessageAsSeen,
+  getMessageSeenBy,
+  pubClient, 
+  subClient 
+};

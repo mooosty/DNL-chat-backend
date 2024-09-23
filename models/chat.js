@@ -14,7 +14,11 @@ const chatModel = new mongoose.Schema(
     },
     groupAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     requestedInvites:[{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    invitesRejected:[inviteSchema]
+    invitesRejected:[inviteSchema],
+
+     //track unread counts for each user in this chat
+     unreadCounts: { type: Map, of: Number, default: {} } // Add this field
+
   },
   { timestamps: true }
 );
